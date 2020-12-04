@@ -141,7 +141,7 @@ nav li {
 .red   { color: red; }
 .black { color: black; }
 .blue  { color: blue; }
-.light { color:black}
+.grey { color: gray; }
 
 #credit {
   position: fixed;
@@ -166,7 +166,7 @@ nav li {
     left: 50%;
     transform: translate(-50%, 0%);
     text-align: center;
-    margin-top: 20px;
+    margin-top: 10px;
   }
   #title {
     padding:0px;
@@ -182,7 +182,9 @@ nav li {
     left: 50%;
     transform: translate(-50%, 0%);
     width: 80%;
-    height: 78%;
+    height: 83%;
+    overflow: hidden;
+    font-size: x-large;
   }
 
   #outputField {
