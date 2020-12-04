@@ -15,4 +15,3 @@ function clearInput() {
 }
 
 window.addEventListener("load", onLoad, false);
-
