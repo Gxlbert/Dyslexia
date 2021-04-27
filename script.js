@@ -65,13 +65,8 @@ function formatInput() {
 //Splits each word into syllables
 //Sends each syllable to concatOutput()
 function formatWord( word ) {
-    //Check for duplicate:
-    if (word.indexOf("ّ") != -1) {
-        word = removeDuplicate(word);
-    }
     //Start new Syllable
     //Special case first
-    
     var currentSyll = getCurrentSyllable(word);
     if (currentSyll !== undefined)
         recurseWordFunc(currentSyll, word);
@@ -168,7 +163,7 @@ function canPronounce( syllable, word ) {
         }
     } else if (syllPosition == 2) {
         if (syllable.substr(syllable.length - 4) == "وْاْ")
-                return false;
+            return false;
     }
     return true;
 }
@@ -238,11 +233,14 @@ function getCurrentSyllable( word ) {
                             return word.substr(0, 6);
                         }
                     }
+                } else {
+                    //case chaddeh
+                    return word.substr(0, 5);
                 }
             } else { //if CV && end of word
                 return word.substr(0, 2);
             }
-        //Case C at start if word
+        //Case C at start of syllable
         } else {
 
             if ( checkSyllType(word[0] + word[1] + word[2]) == "CC1" )
@@ -321,22 +319,9 @@ function checkForLink( syllable ) {
 }
 
 //Helper function
-//Removes "Chadde" from word
-//Duplicates constonant
-function removeDuplicate( word ) {
-    var i = word.indexOf("ّ");        //find index
-    var C = word.charAt(i - 1);      //extract C
-
-    var parts = word.split("ّ");      //split word
-    parts[0] += "ْ" + C;              //concatinate word with duplicate
-
-    return parts[0]+parts[1];        //return full word
-}
-
-//Helper function
 //Checks syllable type
 function checkSyllType( syllable ) {
-if (syllable[1] == "ْ") {
+    if (syllable[1] == "ْ") {
         if (syllable[0] == "ا" || syllable[0] == "و" || syllable[0] == "ي") {
             return "V";
         } else {
@@ -345,12 +330,14 @@ if (syllable[1] == "ْ") {
     } else {
         if (syllable == "إلى" || syllable == "إِلَىْ")
             return "CC1";
-        else if (syllable == "ال")           //case الـ 
-            return "CC2";
-        else if (syllable[1] == "ا")    //case الـ + حرف
-            return "CC3";
+        else if (syllable == "ال")           
+            return "CC2";   //case الـ
+        else if (syllable[1] == "ا")    
+            return "CC3";   //case الـ + حرف
         else if (syllable[0] == "آ")
             return "CC4";
+        else if (syllable[0] == "َ" || syllable[0] == "ُ" || syllable[0] == "ِ" || syllable[0] == "ً" || syllable[0] == "ٌ" || syllable[0] == "ٍ")
+            return "CVV";   //case chaddeh
         else
             return "CV";
     }
