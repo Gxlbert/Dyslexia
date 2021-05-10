@@ -12,8 +12,8 @@ function button()
     username = document.getElementById("username").value;
     password = document.getElementById("password").value;
     
-    var usernameDB = ["Celine" , "Salim", "Hanna", "Gilbert", "Mike"];
-    var passDB = [1,2,3,4,5];
+    var usernameDB = ["Admin"];
+    var passDB =["dyslexia"];
     
     var index = inDatabase(username, usernameDB);
 
@@ -21,7 +21,7 @@ function button()
     {
         if(checkPass(index, password, passDB))
         {
-            document.getElementById("submit").href = "software.html";
+            document.getElementById("submit").href = "index.html";
         }
         else
         {
