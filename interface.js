@@ -21,7 +21,7 @@ function button()
     {
         if(checkPass(index, password, passDB))
         {
-            document.getElementById("submit").href = "index.html";
+            document.getElementById("submit").href = "software.html";
         }
         else
         {
