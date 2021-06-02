@@ -2,11 +2,11 @@
 
 //Global variables
 var finalOutput = "";   //concatinated onto by concatOutput() function, holds final result
-
 var currentWord = "";   //stores word currently being formatted
-var isLetter = true;    //true if first character of current word is a letter
 
-var syllPosition = 0;   //0: word start-Link left     1: word mid-Link both sides     2: word end-Link right
+var boundChar = "*";    //character that bounds words
+
+var syllPosition = 0;   //0: word start      1: word middle      2: word end
 var lastLetter = "";    //save last letter from most recent syllable
 
 var colorFactor = 0;    //used by concatOutput() to determine color of concatinated syllable
@@ -38,9 +38,8 @@ function formatInput() {
             
             //loop through each word
             for (var word in arr1) {
-                //alert(arr1[word]);
-                syllPosition = 0;
-                formatWord(arr1[word]);
+                //stars to highlight first/last syllables
+                formatWord( boundChar + arr1[word] + boundChar );
                 lineOutput += currentWord + " ";
                 currentWord = "";
             }
@@ -66,84 +65,64 @@ function formatInput() {
 //Sends each syllable to concatOutput()
 function formatWord( word ) {
     //Start new Syllable
-    //Special case first
-    var currentSyll = getCurrentSyllable(word);
+
+    var currentSyll = getCurrentSyllable( word );
     if (currentSyll !== undefined)
         recurseWordFunc(currentSyll, word);
 }
 
 //Helper function
-//Indirect Recursion here
+//Indirect Recursion here with formatWord() function
 function recurseWordFunc(syllable, word) {
 
-    //Checking if last syllable in word
-    if (isLetter && (!checkIfLetter(word.substr(syllable.length)) || (word.substr(syllable.length) == "")) && syllPosition != 0)
-        syllPosition = 2;
+    concatSyllable( syllable );
 
-    concatSyllable(syllable, word);
-    word = word.substr(syllable.length);
-
-    //if at start/end of word, keep it that way
-    if (syllPosition != 2)
-        syllPosition = 1;
+    if (syllPosition == 0)
+        word = word.substr(syllable.length + 1);
+    else
+        word = word.substr(syllable.length);
 
     if (word != "")
         formatWord(word);
 }
 
+
+//-------------------------------------------------------------------------------//
+// TODO ::  Implement "getCurrentSyllable()" to recognize characters that aren't //
+//      letters and send them to "ConctatSyllable()" as seperate syllables       //
+//-------------------------------------------------------------------------------//
+
 //Helper function
 //Concatenates syllables onto output string
 //Respects class (color) distribution
 //Uses global variable to check color
-function concatSyllable( syllable, word ) {
-    if (isLetter) {
-        syllable = checkForLink( syllable );
+// Expects a single syllable, of a specific type
+// Type: letters or particle (ex: , . / ; etc..)
+function concatSyllable( syllable ) {
 
-        //Special case if word is only one syllable
-        if (syllPosition == 0 && syllable.length == 5 && syllable.charAt(syllable.length - 2) == "ْ" && word.substr(syllable.length) == "")
-            syllable = syllable.substring(0, syllable.length - 1);
+    var lettersArr = ["ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه", "و", "ي", "ؤ", "أ", "آ", "ء", "ئ", "ة","ل","ى","إ"];
+
+    var isLetter;
+    isLetter = lettersArr.includes(syllable[0]);
+
+    if ( isLetter ) {
+        syllable = checkForLink( syllable );
 
         //register last letter of current syllable
         lastLetter = syllable.substr(syllable.length - 2, 1);
-        
-        if (canPronounce( syllable, word )) {
-            colorSyll( colorFactor );            
-            currentWord += syllable + "</span>";
-            colorFactor++;
-        } else {
-            //if at start of word
-            if (syllPosition == 0) {
-                arr = ["ر", "ز", "د", "ذ", "س", "ش", "ص", "ض", "ط", "ظ", "ن", "ل", "ت", "ث"];
-                var isSun = false;
 
-                //validate letter type
-                for (var i in arr)
-                    if (word.charAt(2) == arr[i]) {
-                        isSun = true;
-                        break;
-                    }
+        colorSyll( colorFactor );            
+        currentWord += syllable + "</span>";
+        colorFactor++;
 
-                if (isSun)
-                    currentWord += "<span class='grey'>" + syllable + "</span>";
-                else {
-                    currentWord += "<span class='grey'>" + syllable[0] + "</span>";
-                    colorSyll(colorFactor - 1);
-                    currentWord += syllable[1] + syllable[2] + "</span>";
-                }
-            } else if (syllPosition == 2) {
-                colorSyll(colorFactor);
-                currentWord += word.substr(0, 4) + "</span>";
-                currentWord += "<span class='grey'>" + syllable.substr(syllable.length - 2) + "</span>";
-            }
-        }
     } else {
         currentWord += "<span class='blue'>" + syllable + "</span>";
-        isLetter = true;
     }
 
-        //nested function
+                //nested function
     //specifies color of syllable only
     function colorSyll( factor ) {
+
         //case first word has الـ
         if (factor < 0)
             factor = 0;
@@ -154,113 +133,175 @@ function concatSyllable( syllable, word ) {
             else
                 currentWord += "<span class='black'>";
     }
-}
 
-function canPronounce( syllable, word ) {
-    if (syllPosition == 0) {
-        if (syllable[0] + syllable[1] == "ال") {
-            return false;
-        }
-    } else if (syllPosition == 2) {
-        if (syllable.substr(syllable.length - 4) == "وْاْ")
-            return false;
-    }
-    return true;
 }
 
     //Helper function
 //returns next syllable to be worked with
 function getCurrentSyllable( word ) {
-    
-    //Case letter
-    if (checkIfLetter(word)) {
-        if ( checkSyllType(word[0] + word[1]) == "CV" ) {
-            //If CV && not end of word
-            if (word.length > 1) {
-                //if CV:
-                if ( checkSyllType(word[2] + word[3]) == "CV" ) {
-                    //end syllable at previous CV
-                    return word.substr(0, 2);
-                }
-                //if C:
-                else if ( checkSyllType(word[2] + word[3]) == "C" ) {
-                    //If CVC && not end of word
-                    if (word.length > 3) {
-                        if ( checkSyllType(word[4] + word[5]) == "C" ) {
-                            //CVCC 
-                            if (word.length > 5) //not end of word
-                                return word.substr(0, 6);
-                            else                 //end of word
-                                return word.substr(0, 6);
-                        } else {
-                            //CVC 
-                            return word.substr(0, 4);
-                        }
-                    } else { //If CVC && end of word
-                        return word.substr(0, 4);
-                    }
-                }
-                //if V: (CL)
-                else if ( checkSyllType(word[2] + word[3]) == "V" ) {
-                    //If CL && not end of word
-                    if (word.length > 3) {
-                        //if CV:
-                        if ( checkSyllType(word[4] + word[5]) == "CV" ) {
-                            //CL
-                            return word.substr(0, 4);
-                        }
-                        //if C
-                        else if ( checkSyllType(word[4] + word[5]) == "C" ) {
-                            //If CLC && not end of word
-                            if (word.length > 5) {
-                                //if C:
-                                if ( checkSyllType(word[6] + word[7]) == "C" ) {
-                                    //CLCC
-                                    if (word.length > 7) //not end of word
-                                        return word.substr(0, 8);
-                                    else                 //end of word
-                                        return word.substr(0, 8);
-                                } else {
-                                    return word.substr(0, 6); //CLC
-                                }
-                            } else //If CLC && end of word
-                                return word.substr(0, 6); //CLC
-                        }
-                        //if V
-                        else if ( checkSyllType(word[4] + word[5]) == "V" ) {
-                            return word.substr(0, 6); //CLV
-                        } else { //If CL && end of word
-                            return word.substr(0, 6);
-                        }
-                    }
-                } else {
-                    //case chaddeh
-                    return word.substr(0, 5);
-                }
-            } else { //if CV && end of word
-                return word.substr(0, 2);
-            }
-        //Case C at start of syllable
-        } else {
 
-            if ( checkSyllType(word[0] + word[1] + word[2]) == "CC1" )
-                return word;
-            else
-                switch (checkSyllType(word[0] + word[1])) {
-                case "C":
-                    return word.substr(0, 2);
-                case "CC2":
-                    return word.substr(0, 2);
-                case "CC3":
-                    return word.substr(0, 3);
-                case "CC4":
-                    return word.substr(0, 1);
-                }
+    // If start or middle of word
+    if ( word[0] == boundChar ) {
+        word = word.substr(1);
+        syllPosition = 0;
+    } else syllPosition = 1;
+
+    var isLong;
+    if (checkForAl(word) == 0)
+        isLong = checkNextCharIfLong( word, 0 );    //If no AL, start from first letter
+    else
+        isLong = checkNextCharIfLong( word, 2 );    //If AL, skip it and start from first letter after it
+
+    var endIndex;
+
+    if (isLong) {
+        endIndex = caseLongSound( word );
+    } else {
+        endIndex = caseNotLongSound( word );
+    }
+
+    if (syllPosition == 2) {
+        word = word.substr(0, word.length - 1);
+        return word;
+    }
+    
+    if (endIndex != -1)
+        return word.substr(0, endIndex);
+}
+
+function caseLongSound( word ) {
+
+    // Sets start position in word
+    var currIndex = checkForAl( word );
+
+    // Take Al el taarif if amari
+    if (currIndex == -1)
+        return 2;
+
+    //alert(word + "     " + currIndex);
+    
+    if ( !checkIfCharIsMharrak( word, currIndex ) ) {
+        // Because substr() is exclusive, move two letters and
+        // return index of letter after the syllable
+
+        currIndex = findNextChar( word, currIndex );
+        if ( (word[currIndex+1] != null) ) {
+            currIndex = findNextChar( word, currIndex );
+            return currIndex;
+        } else {
+            return -1;
         }
     } else {
-        isLetter = false;
-        return word.substr(0, 1);
+        if ( (word[currIndex+1] != null) ) {
+            currIndex = findNextChar( word, currIndex );
+
+            if ( word[currIndex+1] != "ْ" )
+                return currIndex;   //CLC
+            else {
+                currIndex = findNextChar( word, currIndex );
+                return currIndex; //CLCC
+            }
+        } else return -1;
     }
+}
+
+function caseNotLongSound( word ) {
+
+    // Sets start position in word
+    var currIndex = checkForAl( word );
+
+    // Take Al el taarif if amari
+    if (currIndex == -1)
+        return 2;
+
+    if ( (word[currIndex+1] != null) ) {
+        currIndex = findNextChar( word, currIndex );
+
+        if ( word[currIndex+1] != "ْ" )
+            return currIndex;   //CV
+
+        else {
+            if ( (word[currIndex+1] != null) ) {
+                currIndex = findNextChar( word, currIndex );
+
+                if ( word[currIndex+1] != "ْ" )
+                    return currIndex;   //CVC
+                else {
+                    currIndex = findNextChar( word, currIndex );
+                    return currIndex; //CVCC
+                }
+            } else return -1;
+        }
+    } else return -1;
+}
+
+    //Helper function
+//Checks for Al el taarif
+function checkForAl( word ) {
+
+    var Chamsia = ["ث", "ت", "ن", "ل", "ظ", "ط", "ض", "ص", "ش", "س", "ز", "ر", "ذ", "د"];
+
+    if ( word[0] + word[1] == "ال") {
+        if ( Chamsia.includes(word[2]) ) return 2;  // Chamsi
+        else return -1;                             // Amari
+    } else return 0;
+
+}
+
+    //Helper function
+//Checks found character type
+function checkNextCharIfLong( word, index ) {
+
+    var longSounds = ["ا", "و", "ي", "ى","آ"];
+
+    var charAt = findNextChar( word, index );
+
+    if ( longSounds.includes(word[charAt]) ) {
+        return true;
+    } else {
+        return false;
+    }
+
+}
+
+    //Helper function
+//Checks if letter has a Harake
+function checkIfCharIsMharrak( word, index ) {
+
+    var isMharrak = false;
+    var Haraket = ["َ","ُ","ِ"];
+
+    if ( Haraket.includes(word[index+1]) )
+        isMharrak = true;
+
+    return isMharrak;
+
+}
+
+    //Helper function
+//Find next character after given index
+function findNextChar( word, startIndex ) {
+
+    var index = startIndex;
+    var lettersArr = ["ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه", "و", "ي", "ؤ", "أ", "آ", "ء", "ئ", "ة","ل","ى","إ"];
+
+    while ( ( index + 1 ) < word.length ) {
+        if ( !lettersArr.includes(word[index + 1]) )
+            //If at end of word
+            if (word[index+1] == boundChar) {
+                syllPosition = 2;
+                index--;
+                break;
+            } else
+                index++;
+        else {
+            index++;
+            break;
+        }
+    }
+
+    return index;
+
 }
 
     //Helper function
@@ -316,49 +357,6 @@ function checkForLink( syllable ) {
     }
 
     return syllable;
-}
-
-//Helper function
-//Checks syllable type
-function checkSyllType( syllable ) {
-    if (syllable[1] == "ْ") {
-        if (syllable[0] == "ا" || syllable[0] == "و" || syllable[0] == "ي") {
-            return "V";
-        } else {
-            return "C";
-        }
-    } else {
-        if (syllable == "إلى" || syllable == "إِلَىْ")
-            return "CC1";
-        else if (syllable == "ال")           
-            return "CC2";   //case الـ
-        else if (syllable[1] == "ا")    
-            return "CC3";   //case الـ + حرف
-        else if (syllable[0] == "آ")
-            return "CC4";
-        else if (syllable[0] == "َ" || syllable[0] == "ُ" || syllable[0] == "ِ" || syllable[0] == "ً" || syllable[0] == "ٌ" || syllable[0] == "ٍ")
-            return "CVV";   //case chaddeh
-        else
-            return "CV";
-    }
-}
-
-    //Helper function
-//Checks if first character of current word string is a letter
-function checkIfLetter(word) {
-
-    var letters = ["ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه", "و", "ي", "ؤ", "أ", "آ", "ء", "ئ", "ة","ل","ى","إ"];
-    var charIsLetter = false;
-
-    for (var char in letters) {
-        if (word[0] == letters[char]) {
-            charIsLetter = true;
-            break;
-        }
-    }
-
-    return charIsLetter;
-
 }
 
 window.addEventListener("load", onLoad, false);
