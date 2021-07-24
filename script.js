@@ -1,4 +1,120 @@
-//HANDLES WORD FORMATTING
+//For debugging
+class Debugger {
+
+    constructor() {
+        this.reset();
+    }
+    
+    //Start a new line
+    newLine(line) {
+        if (this.active) {
+            this.line++;
+            this.word=0;
+            this.syllable=0;
+            this.output("► Line " + this.line + ": " + line);
+        }
+    }
+    //Start a new word
+    newWord(word) {
+        if (this.active) {
+            this.word++;
+            this.syllable=0;
+
+            this.appendToWordLog("   • Word " + this.word + ": " + word);
+        }
+    }   
+    //Start a new syllable
+    newSyllable(syllable) {
+        if (this.active) {
+            this.syllable++;
+            this.appendToSyllableLog("\n       - Syllable " + this.syllable + ": " + syllable);
+            this.depth = 0;
+        }
+    }
+
+    //Append custom messages
+    appendToWordLog( msg ) {
+        if (this.active) {
+            this.wordLog += "\n" + msg;
+        }
+    }
+    appendToSyllableLog( msg ) {
+        if (this.active) {
+            this.syllLog += "\n" + msg;
+        }
+    }
+    appendToLocalLog( msg ) {
+        if (this.active) {
+            this.localLog += "\n" + this.M_ + msg;
+        }
+    }
+
+    //Submission functions hierarchy
+        // Local     submits to   Syllable
+        // Syllable  submits to   Word
+        // Word      submits to   Console
+    submitWordLog() {
+        if (this.active) {
+            this.output(this.wordLog);
+            this.wordLog = "";
+        }
+    }
+    submitSyllableLog() {
+        if (this.active) {
+            this.appendToWordLog(this.syllLog);
+            this.syllLog = "";
+        }
+    }
+    submitLocalLog() {
+        if (this.active) {
+            this.appendToSyllableLog(this.localLog);
+            this.localLog = "";
+            this.depth--;
+        }
+    }
+
+    addLocalHeader( header ) {
+        this.appendToLocalLog( this.offset( header, this.depth ) );
+        this.depth++;
+        this.appendToSyllableLog(this.localLog);
+        this.localLog = "";
+    }
+
+    //Misc functions
+    offset(msg, n) {
+        if (this.active) {
+            while (n > 0) {
+                msg = "  " + msg;
+                n--;
+            }
+            return msg;
+        }
+    }
+    output(msg) {
+        console.log(msg);
+    }
+    reset() {
+        console.clear();
+        
+        this.active = false; //Debug status
+
+        this.line = 0;      //line number
+        this.word = 0;      //word number within line
+        this.syllable = 0;  //syllable number within word
+
+        this.depth = 0;     //callstack depth, used for offset
+
+        this.wordLog = "";  //Output log of current word cycle
+        this.syllLog = "";  //Output log of current syllable cycle within word
+        this.localLog = ""; //Output log of each function within syllable cycle (re-used by every function)
+        
+        this.M_ = "           "; //Margine used in debug messages
+    }
+
+}
+
+//Debugging variable
+const Debug = new Debugger;
 
 //Global variables
 var finalOutput = "";   //concatinated onto by concatOutput() function, holds final result
@@ -7,7 +123,7 @@ var currentWord = "";   //stores word currently being formatted
 var boundChar = "*";    //character that bounds words
 
 var syllPosition = 0;   //0: word start      1: word middle      2: word end
-var lastLetter = "";    //save last letter from most recent syllable
+var linkSyllables = false;
 
 var colorFactor = 0;    //used by concatOutput() to determine color of concatinated syllable
 
@@ -16,7 +132,6 @@ var colorFactor = 0;    //used by concatOutput() to determine color of concatina
 function onLoad() {
     Bformat = document.getElementById("format");
 
-    //document.addEventListener('paste', allowPaste, true);
     Bformat.addEventListener("click", formatInput, false);
 }
 
@@ -31,17 +146,26 @@ function formatInput() {
         
         var arr0 = Input.split("\n");
 
+        Debug.reset();
+
         //loop through each line
         for (var line in arr0) {
-            //alert(arr0[line]);
+            Debug.newLine(arr0[line]);
+            
             var arr1 = arr0[line].split(" ");
             
             //loop through each word
             for (var word in arr1) {
+                linkSyllables = false;
+                Debug.newWord(arr1[word]);
+
                 //stars to highlight first/last syllables
                 formatWord( boundChar + arr1[word] + boundChar );
                 lineOutput += currentWord + " ";
                 currentWord = "";
+                
+                Debug.submitSyllableLog();
+                Debug.submitWordLog();
             }
             
             lineOutput += "<br>";
@@ -65,10 +189,11 @@ function formatInput() {
 //Sends each syllable to concatOutput()
 function formatWord( word ) {
     //Start new Syllable
-
     var currentSyll = getCurrentSyllable( word );
-    if (currentSyll !== undefined)
+
+    if (currentSyll !== undefined) {
         recurseWordFunc(currentSyll, word);
+    }
 }
 
 //Helper function
@@ -79,11 +204,12 @@ function recurseWordFunc(syllable, word) {
 
     if (syllPosition == 0)
         word = word.substr(syllable.length + 1);
-    else
+    else 
         word = word.substr(syllable.length);
 
-    if (word != "")
+    if (syllPosition < 2) {
         formatWord(word);
+    }
 }
 
 
@@ -92,70 +218,28 @@ function recurseWordFunc(syllable, word) {
 //      letters and send them to "ConctatSyllable()" as seperate syllables       //
 //-------------------------------------------------------------------------------//
 
-//Helper function
-//Concatenates syllables onto output string
-//Respects class (color) distribution
-//Uses global variable to check color
-// Expects a single syllable, of a specific type
-// Type: letters or particle (ex: , . / ; etc..)
-function concatSyllable( syllable ) {
-
-    var lettersArr = ["ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه", "و", "ي", "ؤ", "أ", "آ", "ء", "ئ", "ة","ل","ى","إ"];
-
-    var isLetter;
-    isLetter = lettersArr.includes(syllable[0]);
-
-    if ( isLetter ) {
-        syllable = checkForLink( syllable );
-
-        //register last letter of current syllable
-        lastLetter = syllable.substr(syllable.length - 2, 1);
-
-        colorSyll( colorFactor );            
-        currentWord += syllable + "</span>";
-        colorFactor++;
-
-    } else {
-        currentWord += "<span class='blue'>" + syllable + "</span>";
-    }
-
-                //nested function
-    //specifies color of syllable only
-    function colorSyll( factor ) {
-
-        //case first word has الـ
-        if (factor < 0)
-            factor = 0;
-
-        //color syllable
-        if (factor % 2 == 0)
-                currentWord += "<span class='red'>";
-            else
-                currentWord += "<span class='black'>";
-    }
-
-}
-
     //Helper function
 //returns next syllable to be worked with
 function getCurrentSyllable( word ) {
 
-    // If start or middle of word
-    if ( word[0] == boundChar ) {
-        word = word.substr(1);
-        syllPosition = 0;
-    } else syllPosition = 1;
+    if ( syllPosition != 1) {
+        // If start or middle of word
+        if ( word[0] == boundChar ) {
+            word = word.substr(1);
+            setSyllPosition(0);
+        } else setSyllPosition(1)
+    }
 
     var isLong;
+    
     if (checkForAl(word) == 0)
         isLong = checkNextCharIfLong( word, 0 );    //If no AL, start from first letter
     else
         isLong = checkNextCharIfLong( word, 2 );    //If AL, skip it and start from first letter after it
-
     var endIndex;
 
     if (isLong) {
-        endIndex = caseLongSound( word );
+        endIndex = caseLongSound( word ) + 1;
     } else {
         endIndex = caseNotLongSound( word );
     }
@@ -164,9 +248,10 @@ function getCurrentSyllable( word ) {
         word = word.substr(0, word.length - 1);
         return word;
     }
-    
-    if (endIndex != -1)
+
+    if (endIndex != -1) {
         return word.substr(0, endIndex);
+    }
 }
 
 function caseLongSound( word ) {
@@ -178,15 +263,17 @@ function caseLongSound( word ) {
     if (currIndex == -1)
         return 2;
 
-    //alert(word + "     " + currIndex);
-    
     if ( !checkIfCharIsMharrak( word, currIndex ) ) {
         // Because substr() is exclusive, move two letters and
         // return index of letter after the syllable
 
         currIndex = findNextChar( word, currIndex );
         if ( (word[currIndex+1] != null) ) {
-            currIndex = findNextChar( word, currIndex );
+            currIndex = findNextChar( word, currIndex );    //CL
+            
+            if ( (word[currIndex+1] != null) )
+                currIndex = findNextChar( word, currIndex );    //CLCC
+            
             return currIndex;
         } else {
             return -1;
@@ -241,10 +328,10 @@ function checkForAl( word ) {
 
     var Chamsia = ["ث", "ت", "ن", "ل", "ظ", "ط", "ض", "ص", "ش", "س", "ز", "ر", "ذ", "د"];
 
-    if ( word[0] + word[1] == "ال") {
+    if ( word[0] + word[1] == "ال" && syllPosition == 0) {
         if ( Chamsia.includes(word[2]) ) return 2;  // Chamsi
         else return -1;                             // Amari
-    } else return 0;
+    } else return 0;                                // No ال
 
 }
 
@@ -252,16 +339,37 @@ function checkForAl( word ) {
 //Checks found character type
 function checkNextCharIfLong( word, index ) {
 
-    var longSounds = ["ا", "و", "ي", "ى","آ"];
+    var charAt = findNextChar(word, index);
+    var longSounds = ["ي" , "و" , "ا"];
+    var vowels = ["َ", "ُ", "ِ", "ْ", "ّ"];
 
-    var charAt = findNextChar( word, index );
+    var contained = longSounds.includes(word[charAt]);
+    if (!contained) return false;
 
-    if ( longSounds.includes(word[charAt]) ) {
-        return true;
-    } else {
-        return false;
+    var vowel = word[charAt - 1];       //vowel on letter before long sound 
+    var longVowel = vowels.includes( word[charAt + 1] );   //character after long sound
+    var long = false;
+
+    //if long sound doesn't have a vowel
+    if (!longVowel) {
+        switch (word[charAt]) {
+            case "ا":
+            case "ى":
+                if (vowel == "َ" || vowel == "ً")
+                long = true;
+                break;
+            case "و":
+                if (vowel == "ُ" || vowel == "ٌ")
+                long = true;
+                break;
+            case "ي":
+                if (vowel == "ِ" || vowel == "ٍ")
+                long = true;
+                break;
+        }
     }
 
+    return long;
 }
 
     //Helper function
@@ -271,7 +379,9 @@ function checkIfCharIsMharrak( word, index ) {
     var isMharrak = false;
     var Haraket = ["َ","ُ","ِ"];
 
-    if ( Haraket.includes(word[index+1]) )
+    var nextChar = findNextChar(word, index);
+
+    if ( Haraket.includes(word[nextChar - 1]) )
         isMharrak = true;
 
     return isMharrak;
@@ -281,26 +391,61 @@ function checkIfCharIsMharrak( word, index ) {
     //Helper function
 //Find next character after given index
 function findNextChar( word, startIndex ) {
-
     var index = startIndex;
+    var k = 1; //used to scan forward in word without changing the index
     var lettersArr = ["ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه", "و", "ي", "ؤ", "أ", "آ", "ء", "ئ", "ة","ل","ى","إ"];
 
-    while ( ( index + 1 ) < word.length ) {
-        if ( !lettersArr.includes(word[index + 1]) )
-            //If at end of word
-            if (word[index+1] == boundChar) {
-                syllPosition = 2;
-                index--;
-                break;
+    while ( word[index + k] != undefined ) {
+        if (!lettersArr.includes(word[index + k])) {
+            if (word[index + k] == boundChar) {
+                setSyllPosition(2);
+                return index;
             } else
-                index++;
-        else {
-            index++;
-            break;
-        }
+                k++;
+        } else
+            return index + k;
+    }
+    
+    return index
+}
+
+    // Helper function
+// Concatenates syllables onto output string
+// Respects class (color) distribution
+// Uses global variable to check color
+// Expects a single syllable, of a specific type*
+// *Type: letters or particle (ex: , . / ; etc..)
+function concatSyllable( syllable ) {
+
+    var lettersArr = ["ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه", "و", "ي", "ؤ", "أ", "آ", "ء", "ئ", "ة","ل","ى","إ"];
+
+    var isLetter;
+    isLetter = lettersArr.includes(syllable[0]);
+
+    if ( isLetter ) {
+        syllable = checkForLink( syllable );
+
+        colorSyll( colorFactor );            
+        currentWord += syllable + "</span>";
+        colorFactor++;
+
+    } else {
+        currentWord += "<span class='blue'>" + syllable + "</span>";
     }
 
-    return index;
+        //nested function
+    //specifies color of syllable only
+    function colorSyll( factor ) {
+        //case first word has الـ
+        if (factor < 0)
+            factor = 0;
+
+        //color syllable
+        if (factor % 2 == 0)
+                currentWord += "<span class='red'>";
+            else
+                currentWord += "<span class='black'>";
+    }
 
 }
 
@@ -308,55 +453,57 @@ function findNextChar( word, startIndex ) {
 //Links letters
 function checkForLink( syllable ) {
     //Case الـ:
-    if (syllable.indexOf("ال") != -1 && syllPosition == 0 && syllable.indexOf("ى") == -1)
+    if (syllable.indexOf("ال") != -1 && syllPosition == 0 && syllable.length == 2) {
         syllable = syllable + "ـ";
+        linkSyllables = true;
+    }
     else {
-        var Index1 = ["ا","أ","إ","و","ؤ","ر","د","ز","ذ","ى","ة","آ","ؤ","'",".",",",":",";","?","!"];
+        var lettersNoLinkLeft = ["ا","أ","إ","و","ؤ","ر","د","ز","ذ","ى","ة","آ","ؤ"/*,"'",".",",",":",";","?","!"*/];
 
         if (syllPosition == 0) {            //Case: start of word
             syllable = linkAfter( syllable );
-        } else if (syllPosition == 1) {     //Case: middle of word
-            syllable = linkAfter( syllable );
-            syllable = linkBefore( syllable );            
-        } else if (syllPosition == 2) {        //Case: end of word
+        } else if (syllPosition == 1) {     //Case: middle of word 
+            syllable = linkBefore( syllable ); 
+            syllable = linkAfter( syllable );          
+        } else if (syllPosition == 2) {     //Case: end of word
             syllable = linkBefore( syllable );
+            linkSyllables = false;
         }
     }
 
         //Nested Function
     function linkBefore( str ) {
-        var doLink = true;
 
-        for (var i in Index1) {
-            if (Index1.indexOf(lastLetter) != -1){
-                //Don't link
-                doLink = false;
-                break;
-            }
+        for (var i in lettersNoLinkLeft) {
+            if (!linkSyllables)
+                return str;
         }
-        if (doLink)  //Link
-            return "ـ" + str;
-        return str;
+        return "ـ" + str;
         
     }
 
         //Nested Function
     function linkAfter( str ) {
-
-        //special case
-        if ( str == "إلى" || str == "إِلَىْ" )
-            return str;
+        index=0;
+        // (str[index+1] != null)
+        while ( index != findNextChar(str, index) )
+            index=findNextChar(str, index);
 
         //Checking for last letter if NOT of Index1[]
-        for (var i in Index1) {
-            if (Index1.indexOf(str.substr(-2, 1)) == -1) {
-                return str + "ـ";
-            }
+        if (lettersNoLinkLeft.includes(str[index]) || syllPosition == 2) {
+            linkSyllables = false;
+            return str;
+        } else {
+            linkSyllables = true;
+            return str + "ـ";
         }
-        return str;
     }
 
     return syllable;
+}
+
+function setSyllPosition(pos) {
+    syllPosition = pos;
 }
 
 window.addEventListener("load", onLoad, false);
